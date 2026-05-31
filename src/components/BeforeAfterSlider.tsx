@@ -64,7 +64,7 @@ export default function BeforeAfterSlider({
         onMouseDown={handleStart}
         onTouchStart={handleStart}
         className="relative mx-auto flex h-full w-full items-center justify-center cursor-ew-resize overflow-hidden"
-        style={{ aspectRatio: '16/10', maxHeight: '55vh' }}
+        style={{ aspectRatio: '16/10', maxHeight: '38vh' }}
       >
         {/* Compressed Image (Background) */}
         <div className="absolute inset-0 h-full w-full p-4 flex items-center justify-center">

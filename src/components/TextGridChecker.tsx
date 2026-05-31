@@ -88,17 +88,17 @@ export default function TextGridChecker({
     <div className="flex flex-col h-full w-full select-none" ref={containerRef}>
       {/* 10x10 Interactive Canvas Viewport */}
       <div 
-        className="relative flex-1 min-h-[350px] w-full rounded-2xl bg-slate-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-4 shadow-2xl"
+        className="relative flex-1 min-h-[280px] w-full rounded-2xl bg-slate-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-4 shadow-2xl"
         onMouseLeave={handleStopDrawing}
         onTouchMove={handleTouchMove}
       >
         {/* Background Image Container */}
-        <div className="relative w-full h-full max-h-[50vh] flex items-center justify-center aspect-square md:aspect-[4/3] lg:aspect-square select-none">
+        <div className="relative w-full h-full max-h-[38vh] flex items-center justify-center aspect-square md:aspect-[4/3] lg:aspect-square select-none">
           {/* Main User Image */}
           <img
             src={imageSrc}
             alt="Checked Source"
-            className="w-full h-full object-contain max-h-[50vh] rounded-lg pointer-events-none opacity-85"
+            className="w-full h-full object-contain max-h-[38vh] rounded-lg pointer-events-none opacity-85"
           />
 
           {/* Overlaid CSS Grid for 10x10 checking */}
