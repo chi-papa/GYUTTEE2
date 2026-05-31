@@ -195,18 +195,17 @@ export default function App() {
   const checkerReport = getCheckerGrade(checkerMarkedCount);
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen w-screen bg-[#F1F5F9] text-slate-900 font-sans overflow-hidden selection:bg-emerald-500/20 selection:text-emerald-800">
+    <div className="flex flex-col lg:flex-row h-[95vh] max-h-[95vh] w-screen bg-[#F1F5F9] text-slate-900 font-sans overflow-hidden selection:bg-emerald-500/20 selection:text-emerald-800">
       
       {/* ───────────────────────────────────────────────────────────────
           LEFT SIDEBAR: Configurations & Branding (Sleek Interface style)
           ─────────────────────────────────────────────────────────────── */}
-      <div className="w-full lg:w-[380px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-6 lg:p-8 flex flex-col justify-between flex-shrink-0 relative z-10 shadow-sm lg:h-screen overflow-y-auto">
+      <div className="w-full lg:w-[380px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-6 lg:p-8 flex flex-col justify-between flex-shrink-0 relative z-10 shadow-sm lg:h-[95vh] lg:max-h-[95vh] overflow-y-auto">
         <div>
           {/* Logo element with extreme negative tracking and Arial Black / Syne style */}
           <div className="mb-6 lg:mb-8">
             <h1 
-              style={{ fontFamily: "'Space Grotesk', 'Arial Black', sans-serif", letterSpacing: "-3px" }} 
-              className="text-4xl font-black text-slate-900 leading-none"
+              className="text-4xl font-righteous text-slate-900 leading-none tracking-normal"
             >
               GYUTT<span className="text-emerald-500">E</span>E.
             </h1>
@@ -389,7 +388,7 @@ export default function App() {
       {/* ───────────────────────────────────────────────────────────────
           RIGHT CONTENT: Results & Visualizer Dashboard (Sleek Interface style)
           ─────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 bg-[#0F172A] p-6 lg:p-8 flex flex-col justify-between relative lg:h-screen text-white overflow-y-auto">
+      <div className="flex-1 bg-[#0F172A] p-6 lg:p-8 flex flex-col justify-between relative lg:h-[95vh] lg:max-h-[95vh] text-white overflow-y-auto">
         
         {/* Decorative emerald gradient glow elements from design */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
