@@ -1,19 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sparkles, 
-  Type, 
   Trash2, 
   Plus, 
-  Type as FontIcon, 
   Download, 
-  MousePointer2, 
   Layers, 
-  HelpCircle,
   MessageSquare,
   Bookmark,
-  RefreshCw,
   X,
-  Palette
+  Type,
+  Maximize2
 } from 'lucide-react';
 
 interface DragItem {
@@ -57,14 +53,20 @@ export default function TextGridChecker({
   // Mode selection: 'mark' = 10x10 selector, 'simulation' = add overlays
   const [activeMode, setActiveMode] = useState<'mark' | 'simulation'>('mark');
 
-  // Grid Checker States
+  // Grid Checker States (Manual User Painting Settings)
   const [grid, setGrid] = useState<boolean[]>(Array(100).fill(false));
+  const [autoGrid, setAutoGrid] = useState<boolean[]>(Array(100).fill(false));
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [drawMode, setDrawMode] = useState<boolean>(true); // true = draw, false = erase
+  
+  // Custom interactive output export dimensions multiplier
+  const [exportScale, setExportScale] = useState<number>(1.0);
+  const [baseImageDimensions, setBaseImageDimensions] = useState({ width: 800, height: 800 });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
-  // Simulation Overlay States
+  // Simulation Overlay States with Multi-line Default text supports
   const [items, setItems] = useState<DragItem[]>([
     {
       id: 'default-badge',
@@ -72,8 +74,8 @@ export default function TextGridChecker({
       text: '',
       badgeNum: '3',
       badgeUnit: '個セット',
-      x: 15,
-      y: 15,
+      x: 18,
+      y: 18,
       color: '#F59E0B',
       textColor: '#000000',
       fontSize: 16,
@@ -85,11 +87,11 @@ export default function TextGridChecker({
     {
       id: 'default-bubble',
       type: 'bubble',
-      text: '特別限定価格キャンペーン！',
+      text: '＼本日限定／\n大感謝祭セール！',
       badgeNum: '',
       badgeUnit: '',
-      x: 45,
-      y: 75,
+      x: 50,
+      y: 78,
       color: '#EF4444',
       textColor: '#FFFFFF',
       fontSize: 13,
@@ -105,13 +107,90 @@ export default function TextGridChecker({
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const dragStartOffset = useRef({ x: 0, y: 0 });
 
-  const markedCount = grid.filter(Boolean).length;
+  // ───────────────────────────────────────────────────────────────
+  // DYNAMIC OVERLAPPING AUTOMATIC MATH DETECTOR
+  // Calculate bounding boxes of layered items on top of 10x10 grid
+  // ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const updatedAutoGrid = Array(100).fill(false);
+
+    items.forEach((item) => {
+      // Approximate physical scale percent occupied by elements on overlay.
+      // 10x10 grid cell is strictly 10% x 10%.
+      let widthPercent = 12;
+      let heightPercent = 12;
+
+      if (item.type === 'badge') {
+        const diameter = item.fontSize * 3.2;
+        widthPercent = Math.max(10, (diameter / 360) * 100);
+        heightPercent = widthPercent;
+      } else {
+        // Evaluate multiple lines of texts bounding widths
+        const lines = item.text.split('\n');
+        const longestLine = lines.reduce((max, l) => l.length > max.length ? l : max, '');
+        const charCount = longestLine.length || 1;
+        
+        const estTextWidth = charCount * item.fontSize * 0.72;
+        const estTextHeight = lines.length * item.fontSize * 1.35;
+
+        const padX = item.type === 'plate' ? item.fontSize * 1.8 : item.type === 'bubble' ? item.fontSize * 1.4 : 10;
+        const padY = item.type === 'plate' ? item.fontSize * 0.8 : item.type === 'bubble' ? item.fontSize * 0.8 + 10 : 8;
+
+        widthPercent = Math.max(10, ((estTextWidth + padX) / 360) * 100);
+        heightPercent = Math.max(6, ((estTextHeight + padY) / 360) * 100);
+      }
+
+      // Compute boundaries relative to total bounding container (0-100%)
+      const minX = item.x - widthPercent / 2;
+      const maxX = item.x + widthPercent / 2;
+      const minY = item.y - heightPercent / 2;
+      const maxY = item.y + heightPercent / 2;
+
+      // Map overlapping coordinates directly to grid cells
+      for (let i = 0; i < 100; i++) {
+        const col = i % 10;
+        const row = Math.floor(i / 10);
+
+        const cellMinX = col * 10;
+        const cellMaxX = (col + 1) * 10;
+        const cellMinY = row * 10;
+        const cellMaxY = (row + 1) * 10;
+
+        // Check 2D Rectangle overlap
+        const overlapX = Math.max(0, Math.min(cellMaxX, maxX) - Math.max(cellMinX, minX)) > 0.1;
+        const overlapY = Math.max(0, Math.min(cellMaxY, maxY) - Math.max(cellMinY, minY)) > 0.1;
+
+        if (overlapX && overlapY) {
+          updatedAutoGrid[i] = true;
+        }
+      }
+    });
+
+    setAutoGrid(updatedAutoGrid);
+  }, [items]);
+
+  // Read dimensions from original image on load
+  useEffect(() => {
+    if (!imageSrc) return;
+    const img = new Image();
+    img.src = imageSrc;
+    img.onload = () => {
+      setBaseImageDimensions({
+        width: img.naturalWidth || 800,
+        height: img.naturalHeight || 800
+      });
+    };
+  }, [imageSrc]);
+
+  // Combined Grid: Union of Manual Marks & Automatic Item overlays
+  const unifiedGrid = grid.map((isManual, idx) => isManual || autoGrid[idx]);
+  const unifiedMarkedCount = unifiedGrid.filter(Boolean).length;
 
   useEffect(() => {
-    onMarkChange(markedCount);
-  }, [grid, markedCount, onMarkChange]);
+    onMarkChange(unifiedMarkedCount);
+  }, [unifiedMarkedCount, onMarkChange]);
 
-  // Grid Cell Actions
+  // Grid Cell Actions (Manually Painting)
   const handleCellDown = (index: number, e: React.MouseEvent | React.TouchEvent) => {
     if (activeMode !== 'mark') return;
     e.preventDefault();
@@ -134,7 +213,7 @@ export default function TextGridChecker({
     }
   };
 
-  // Touch Support for Grid Painting
+  // Touch Support for Painting
   const handleTouchMove = (e: React.TouchEvent) => {
     if (activeMode !== 'mark' || !isDrawing || !containerRef.current) return;
     const touch = e.touches[0];
@@ -154,7 +233,7 @@ export default function TextGridChecker({
     }
   };
 
-  // Global mouse/touch release
+  // Global Mouse release watcher
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       setIsDrawing(false);
@@ -168,12 +247,11 @@ export default function TextGridChecker({
     };
   }, []);
 
-  // Item Drag Action Handlers
+  // Simulator Drag handles
   const handleItemStartDrag = (id: string, e: React.MouseEvent | React.TouchEvent) => {
     if (activeMode !== 'simulation') return;
     e.stopPropagation();
     
-    // Select the item
     setSelectedItemId(id);
     setDraggedItemId(id);
 
@@ -212,11 +290,10 @@ export default function TextGridChecker({
     let targetXInPx = mouseX - dragStartOffset.current.x;
     let targetYInPx = mouseY - dragStartOffset.current.y;
 
-    // Convert back to percentages
     let percentageX = (targetXInPx / rect.width) * 100;
     let percentageY = (targetYInPx / rect.height) * 100;
 
-    // Boundary snap lock
+    // Boundaries restraint
     percentageX = Math.max(0, Math.min(100, percentageX));
     percentageY = Math.max(0, Math.min(100, percentageY));
 
@@ -227,24 +304,24 @@ export default function TextGridChecker({
     ));
   };
 
-  // Add items
+  // Add Item to sim deck
   const handleAddItem = (type: DragItem['type']) => {
     const defaultText = {
       badge: '',
-      bubble: '特別大特価セール！',
-      plate: '＼ 本日限定 50%OFF ／',
-      text: 'ここに文字を挿入'
+      bubble: '＼限定セール／\n大感謝祭実施中！',
+      plate: '＼特別価格 50% OFF／',
+      text: '追加のキャッチコピー'
     }[type];
 
     const newItem: DragItem = {
       id: `${type}-${Date.now()}`,
       type,
       text: defaultText,
-      badgeNum: type === 'badge' ? '2' : '',
+      badgeNum: type === 'badge' ? '5' : '',
       badgeUnit: type === 'badge' ? '個セット' : '',
-      x: 30 + (items.length * 5) % 40,
-      y: 30 + (items.length * 5) % 40,
-      color: type === 'bubble' ? '#EC4899' : type === 'badge' ? '#F59E0B' : '#FEF08A',
+      x: 35 + (items.length * 7) % 35,
+      y: 35 + (items.length * 7) % 35,
+      color: type === 'bubble' ? '#EF4444' : type === 'badge' ? '#F59E0B' : '#FEF08A',
       textColor: type === 'plate' ? '#0F172A' : '#FFFFFF',
       fontSize: type === 'badge' ? 16 : 14,
       fontWeight: '700',
@@ -271,30 +348,33 @@ export default function TextGridChecker({
     setGrid(Array(100).fill(false));
   };
 
-  // Safe client-side Canvas compositor of Image overlays
+  // ───────────────────────────────────────────────────────────────
+  // COMPOSING ENGINE (Support customized export bounds scale factor & multi-line wrapped text)
+  // ───────────────────────────────────────────────────────────────
   const handleExportComposedImage = () => {
     const baseImg = new Image();
     baseImg.crossOrigin = "anonymous";
     baseImg.src = imageSrc;
     baseImg.onload = () => {
-      // Setup canvas with exactly match the uploaded file dimensions
       const canvas = document.createElement('canvas');
-      canvas.width = baseImg.naturalWidth;
-      canvas.height = baseImg.naturalHeight;
+      // Apply the exportScale variable dynamically to produce customized size
+      canvas.width = Math.round(baseImg.naturalWidth * exportScale);
+      canvas.height = Math.round(baseImg.naturalHeight * exportScale);
+      
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Draw standard original image
+      // Render the raw base image on output bounds
       ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
 
-      // Render overlapping items sequentially matching original scale ratio
+      // Compositing added overlays
       items.forEach(item => {
         const xPx = (item.x / 100) * canvas.width;
         const yPx = (item.y / 100) * canvas.height;
 
-        // Custom responsive font scale relative to original width (assumed base standard 800px width)
-        const scaleFactor = canvas.width / 400; 
-        const fontSizePx = Math.round(item.fontSize * scaleFactor);
+        // scale factor depends on base canvas size and multiplier combined
+        const scaleFactor = (canvas.width / 400); 
+        const fontSizePx = Math.round(item.fontSize * (scaleFactor / exportScale) * exportScale);
         const fontWeightStr = item.fontWeight;
         
         let fontStack = '';
@@ -307,20 +387,40 @@ export default function TextGridChecker({
         }
         ctx.font = fontStack;
 
+        // A. TEXT ELEMENT (supports multi-line rendering)
         if (item.type === 'text') {
           ctx.fillStyle = item.textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(item.text, xPx, yPx);
+          
+          const lines = item.text.split('\n');
+          const pyLineHeight = fontSizePx * 1.35;
+          const totalTextH = lines.length * pyLineHeight;
+          const startY = yPx - (totalTextH / 2) + (pyLineHeight / 2);
+
+          lines.forEach((line, index) => {
+            ctx.fillText(line, xPx, startY + index * pyLineHeight);
+          });
         }
 
+        // B. PLATE/ZABUTON ELEMENT (supports multi-line rendering)
         else if (item.type === 'plate') {
           ctx.font = fontStack;
-          const textMetrics = ctx.measureText(item.text);
-          const py = fontSizePx * 0.4;
+          const lines = item.text.split('\n');
+          const pyLineHeight = fontSizePx * 1.35;
+          const totalTextH = lines.length * pyLineHeight;
+
+          // Measure maximum single line width
+          let maxLineWidth = 0;
+          lines.forEach(line => {
+            const w = ctx.measureText(line).width;
+            if (w > maxLineWidth) maxLineWidth = w;
+          });
+
+          const py = fontSizePx * 0.45;
           const px = fontSizePx * 0.8;
-          const plateWidth = textMetrics.width + px * 2;
-          const plateHeight = fontSizePx + py * 2;
+          const plateWidth = maxLineWidth + px * 2;
+          const plateHeight = totalTextH + py * 1.5;
           
           ctx.fillStyle = item.color;
           ctx.beginPath();
@@ -336,9 +436,14 @@ export default function TextGridChecker({
           ctx.fillStyle = item.textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(item.text, xPx, yPx);
+
+          const startY = yPx - (totalTextH / 2) + (pyLineHeight / 2);
+          lines.forEach((line, index) => {
+            ctx.fillText(line, xPx, startY + index * pyLineHeight);
+          });
         }
 
+        // C. MULTISET / BADGE ELEMENT (Fixed circle layout)
         else if (item.type === 'badge') {
           const radius = fontSizePx * 1.6;
           ctx.fillStyle = item.color;
@@ -346,7 +451,7 @@ export default function TextGridChecker({
           ctx.arc(xPx, yPx, radius, 0, Math.PI * 2);
           ctx.fill();
 
-          // Stroke border
+          // Outer frame
           ctx.lineWidth = 2 * scaleFactor;
           ctx.strokeStyle = '#FFFFFF';
           ctx.stroke();
@@ -354,35 +459,43 @@ export default function TextGridChecker({
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
 
-          // Separate big number and unit text lines
           const numFontSize = Math.round(fontSizePx * 1.5);
           const unitFontSize = Math.round(fontSizePx * 0.7);
 
-          // Big number draw
+          // Value digit text
           ctx.font = `${item.fontWeight} ${numFontSize}px ${item.fontFamily === 'CCPixelArcade' ? '"CCPixelArcade", ' : ''}"Noto Sans JP", sans-serif`;
           ctx.fillStyle = item.textColor;
           ctx.fillText(item.badgeNum, xPx, yPx - radius * 0.15);
 
-          // Unit text draw
+          // Units title text
           ctx.font = `700 ${unitFontSize}px "Noto Sans JP", sans-serif`;
           ctx.fillText(item.badgeUnit, xPx, yPx + radius * 0.45);
         }
 
+        // D. SPEECH BUBBLE ELEMENT (supports multi-line rendering)
         else if (item.type === 'bubble') {
           ctx.font = fontStack;
-          const textMetrics = ctx.measureText(item.text);
-          const py = fontSizePx * 0.4;
+          const lines = item.text.split('\n');
+          const pyLineHeight = fontSizePx * 1.35;
+          const totalTextH = lines.length * pyLineHeight;
+
+          let maxLineWidth = 0;
+          lines.forEach(line => {
+            const w = ctx.measureText(line).width;
+            if (w > maxLineWidth) maxLineWidth = w;
+          });
+
+          const py = fontSizePx * 0.45;
           const px = fontSizePx * 0.7;
-          const bubbleW = textMetrics.width + px * 2;
-          const bubbleH = fontSizePx + py * 2;
+          const bubbleW = maxLineWidth + px * 2;
+          const bubbleH = totalTextH + py * 1.5;
           const rectX = xPx - bubbleW / 2;
           const rectY = yPx - bubbleH / 2;
 
           ctx.fillStyle = item.color;
           ctx.beginPath();
-          // Draw rect body
           ctx.roundRect(rectX, rectY, bubbleW, bubbleH, 6 * scaleFactor);
-          // Draw speech node arrow
+          
           const arrowOffset = 8 * scaleFactor;
           if (item.bubbleDirection === 'bottom') {
             ctx.moveTo(xPx - arrowOffset, rectY + bubbleH);
@@ -407,14 +520,17 @@ export default function TextGridChecker({
           ctx.fillStyle = item.textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(item.text, xPx, yPx);
+          
+          const startY = yPx - (totalTextH / 2) + (pyLineHeight / 2);
+          lines.forEach((line, index) => {
+            ctx.fillText(line, xPx, startY + index * pyLineHeight);
+          });
         }
       });
 
-      // Save compositor result
       const outUrl = canvas.toDataURL('image/png');
       const a = document.createElement('a');
-      a.download = `gyuttee_composite_${Date.now()}.png`;
+      a.download = `composed_banner_x${exportScale}_${Date.now()}.png`;
       a.href = outUrl;
       a.click();
     };
@@ -423,34 +539,35 @@ export default function TextGridChecker({
   const selectedItemObj = items.find(it => it.id === selectedItemId);
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full gap-5 select-none text-white" ref={containerRef}>
+    <div className="flex flex-col lg:flex-row h-full w-full gap-5 select-none text-white relative" ref={containerRef}>
       
-      {/* 1. LEFT MAIN CANVAS CONTAINER VORTEX */}
-      <div className="flex-1 flex flex-col gap-3">
-        {/* Mode & Action Control Header Tabs */}
-        <div className="flex items-center justify-between p-1 bg-slate-900/60 rounded-xl border border-white/5">
+      {/* 1. LEFT MAIN INTERACTIVE CANVAS VIEWPORT */}
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
+        
+        {/* Taster modes control */}
+        <div className="flex items-center justify-between p-1 bg-slate-900/80 rounded-xl border border-white/10 shadow-lg">
           <div className="flex gap-1">
             <button
               onClick={() => { setActiveMode('mark'); setSelectedItemId(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeMode === 'mark' 
                   ? 'bg-slate-800 text-emerald-400 shadow-inner' 
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Layers size={13} />
-              グリッドマーク判定
+              グリッドマーク
             </button>
             <button
               onClick={() => setActiveMode('simulation')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeMode === 'simulation' 
                   ? 'bg-slate-800 text-emerald-400 shadow-inner' 
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Sparkles size={13} />
-              シミュレータ (追加パーツ重ね)
+              追加パーツ (シミュレータ)
             </button>
           </div>
 
@@ -458,51 +575,50 @@ export default function TextGridChecker({
             {activeMode === 'mark' ? (
               <button
                 onClick={handleClear}
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-slate-800/80 hover:bg-slate-800 rounded text-slate-300 transition-all"
+                className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-slate-800/85 hover:bg-slate-700/80 hover:text-white rounded border border-white/5 text-slate-300 transition-all cursor-pointer"
               >
-                全マーク消去
+                マーク消去
               </button>
             ) : (
               <button
                 onClick={handleExportComposedImage}
-                className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 bg-emerald-500 text-slate-950 rounded hover:bg-emerald-400 transition-all"
+                className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 bg-emerald-500 text-slate-950 rounded hover:bg-emerald-400 border border-emerald-600/20 shadow transition-all cursor-pointer"
               >
-                <Download size={10} />
-                合成画像を保存
+                <Download size={10} strokeWidth={2.5} />
+                合成保存
               </button>
             )}
           </div>
         </div>
 
-        {/* The Live Interactive Canvas Wrapper */}
+        {/* Live Canvas workspace frame */}
         <div 
           ref={imageContainerRef}
           onMouseMove={handleCanvasMouseMove}
           onTouchMove={handleCanvasMouseMove}
-          className="relative min-h-[300px] aspect-square w-full rounded-2xl bg-neutral-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-3 shadow-2xl"
+          className="relative min-h-[300px] aspect-square w-full rounded-2xl bg-neutral-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-2.5 shadow-2xl"
         >
-          {/* Contain Wrapper to exactly overlap elements on aspect proportion */}
+          {/* Constrain layout to avoid overflow */}
           <div className="relative w-full h-full max-h-[36vh] flex items-center justify-center aspect-square select-none">
-            {/* Base Uploaded User Banner */}
+            
+            {/* Background Upload Image */}
             <img
               src={imageSrc}
-              alt="Simulation Source"
-              className="w-full h-full object-contain max-h-[36vh] rounded-lg pointer-events-none opacity-80"
+              alt="Workspace canvas background"
+              className="w-full h-full object-contain max-h-[36vh] rounded-lg pointer-events-none opacity-85"
             />
 
-            {/* LAYER 1: Interactive Overlay Draggable Items Panel */}
+            {/* OVERLAY PANEL: Draggable Overlay elements items */}
             <div className="absolute inset-0 pointer-events-none z-20">
               {items.map((item) => {
                 const isSelected = selectedItemId === item.id;
                 
-                // Set interactive properties
                 const itemStyles: React.CSSProperties = {
                   left: `${item.x}%`,
                   top: `${item.y}%`,
                   transform: 'translate(-50%, -50%)',
                   position: 'absolute',
                   cursor: activeMode === 'simulation' ? 'move' : 'default',
-                  // Noto Sans, fallback pixel, fallback sans
                   fontFamily: item.fontFamily === 'CCPixelArcade' 
                     ? '"CCPixelArcade", "Noto Sans JP", sans-serif'
                     : '"Noto Sans JP", sans-serif',
@@ -517,19 +633,21 @@ export default function TextGridChecker({
                     style={itemStyles}
                     onMouseDown={(e) => handleItemStartDrag(item.id, e)}
                     onTouchStart={(e) => handleItemStartDrag(item.id, e)}
-                    className={`pointer-events-auto select-none select-all transition-shadow relative group ${
-                      isSelected ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950' : 'hover:ring-1 hover:ring-white/30'
+                    className={`pointer-events-auto select-none transition-shadow relative group ${
+                      isSelected ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950 shadow-2xl z-30' : 'hover:ring-1 hover:ring-white/40'
                     }`}
                   >
-                    {/* Visualizer output according to item type */}
+                    {/* Visual styling nodes on multi-line text */}
                     {item.type === 'text' && (
-                      <span className="whitespace-nowrap px-1 py-0.5">{item.text}</span>
+                      <span className="whitespace-pre-line text-center block px-1.5 py-1 leading-normal select-none">
+                        {item.text}
+                      </span>
                     )}
 
                     {item.type === 'plate' && (
                       <div 
                         style={{ backgroundColor: item.color }} 
-                        className={`px-3 py-1.5 whitespace-nowrap shadow-md select-none ${
+                        className={`px-3.5 py-1.5 text-center whitespace-pre-line select-none shadow-lg leading-normal border border-white/10 ${
                           item.plateRounding === 'full' ? 'rounded-full' : item.plateRounding === 'md' ? 'rounded-md' : 'rounded-none'
                         }`}
                       >
@@ -540,12 +658,12 @@ export default function TextGridChecker({
                     {item.type === 'badge' && (
                       <div 
                         style={{ backgroundColor: item.color, borderColor: '#FFFFFF' }} 
-                        className="w-14 h-14 rounded-full flex flex-col justify-center items-center text-center shadow-lg border-2"
+                        className="w-14 h-14 rounded-full flex flex-col justify-center items-center text-center shadow-lg border-2 select-none font-bold"
                       >
                         <span className="text-xl font-black leading-none -mb-0.5" style={{ color: item.textColor }}>
                           {item.badgeNum}
                         </span>
-                        <span className="text-[7px] font-bold tracking-tight opacity-90 leading-none" style={{ color: item.textColor }}>
+                        <span className="text-[7px] font-bold tracking-tight opacity-95 leading-none" style={{ color: item.textColor }}>
                           {item.badgeUnit}
                         </span>
                       </div>
@@ -554,29 +672,35 @@ export default function TextGridChecker({
                     {item.type === 'bubble' && (
                       <div 
                         style={{ backgroundColor: item.color }} 
-                        className="px-3 py-1.5 whitespace-nowrap rounded-md relative shadow-md"
+                        className="px-3.5 py-2 text-center whitespace-pre-line rounded-lg relative shadow-xl leading-normal select-none border border-white/5"
                       >
                         <span style={{ color: item.textColor }}>{item.text}</span>
-                        {/* Triangular pointer */}
+                        {/* Interactive Pointer */}
                         <div 
-                          style={{ borderColor: item.color }}
-                          className={`absolute w-0 h-0 border-[5px] border-transparent 
-                            ${item.bubbleDirection === 'bottom' ? 'bottom-[-10px] left-1/2 -translate-x-1/2 border-t-current' : ''}
-                            ${item.bubbleDirection === 'top' ? 'top-[-10px] left-1/2 -translate-x-1/2 border-b-current' : ''}
-                            ${item.bubbleDirection === 'left' ? 'left-[-10px] top-1/2 -translate-y-1/2 border-r-current' : ''}
-                            ${item.bubbleDirection === 'right' ? 'right-[-10px] top-1/2 -translate-y-1/2 border-l-current' : ''}
-                          `}
+                          className="absolute w-0 h-0 border-[6px] border-transparent"
+                          style={{ 
+                            borderColor: 'transparent',
+                            borderTopColor: item.bubbleDirection === 'bottom' ? item.color : 'transparent',
+                            borderBottomColor: item.bubbleDirection === 'top' ? item.color : 'transparent',
+                            borderRightColor: item.bubbleDirection === 'left' ? item.color : 'transparent',
+                            borderLeftColor: item.bubbleDirection === 'right' ? item.color : 'transparent',
+                            bottom: item.bubbleDirection === 'bottom' ? '-11px' : 'auto',
+                            top: item.bubbleDirection === 'top' ? '-11px' : item.bubbleDirection === 'left' || item.bubbleDirection === 'right' ? 'calc(50% - 6px)' : 'auto',
+                            left: item.bubbleDirection === 'left' ? '-11px' : item.bubbleDirection === 'bottom' || item.bubbleDirection === 'top' ? 'calc(50% - 6px)' : 'auto',
+                            right: item.bubbleDirection === 'right' ? '-11px' : 'auto',
+                          }}
                         />
                       </div>
                     )}
 
-                    {/* Simple quick remover button when in Simulation mode */}
+                    {/* Fast trash helper in layout */}
                     {activeMode === 'simulation' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
                         className="absolute -top-3.5 -right-3.5 w-5 h-5 bg-rose-500 hover:bg-rose-600 rounded-full flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform shadow-md z-30 cursor-pointer"
+                        title="消去"
                       >
-                        <X size={10} />
+                        <X size={10} strokeWidth={3} />
                       </button>
                     )}
                   </div>
@@ -584,144 +708,188 @@ export default function TextGridChecker({
               })}
             </div>
 
-            {/* LAYER 2: Grid Cells Painting Selector (Mark Mode only) */}
+            {/* PAINT GRID CELLS: Manual Selector + Auto Overlaps blending */}
             <div 
               className={`absolute inset-0 m-auto aspect-square grid grid-cols-10 grid-rows-10 border border-sky-400/25 overflow-hidden rounded-lg bg-transparent transition-opacity duration-300
                 ${activeMode === 'mark' ? 'opacity-100 z-10' : 'opacity-25 pointer-events-none z-0'}
               `}
               style={{ maxHeight: '100%', maxWidth: '100%' }}
             >
-              {grid.map((isMarked, index) => (
-                <div
-                  key={index}
-                  data-cell-index={index}
-                  onMouseDown={(e) => handleCellDown(index, e)}
-                  onTouchStart={(e) => handleCellDown(index, e)}
-                  onMouseEnter={() => handleCellEnter(index)}
-                  className={`relative border flex items-start justify-start p-0.5 cursor-pointer transition-all duration-100 select-none
-                    ${isMarked 
-                      ? 'bg-rose-500/35 border-rose-400/80 shadow-[inset_0_0_4px_rgba(244,63,94,0.5)]' 
-                      : 'border-slate-700/10 hover:bg-sky-500/10 hover:border-sky-500/20'
-                    }
-                  `}
-                >
-                  <span 
+              {unifiedGrid.map((isMarked, index) => {
+                // Determine source for color coding
+                const isManual = grid[index];
+                const isAuto = autoGrid[index];
+
+                let cellColorClass = 'border-slate-700/10 hover:bg-sky-500/15 hover:border-sky-500/30';
+                if (isManual) {
+                  // User manual click/drawing red markup
+                  cellColorClass = 'bg-rose-500/35 border-rose-400/80 shadow-[inset_0_0_4px_rgba(244,63,94,0.5)]';
+                } else if (isAuto) {
+                  // Auto calculated overlay block markup indicator (fabulous violet)
+                  cellColorClass = 'bg-indigo-500/30 border-indigo-400/80 shadow-[inset_0_0_4px_rgba(99,102,241,0.5)]';
+                }
+
+                return (
+                  <div
+                    key={index}
                     data-cell-index={index}
-                    className="font-mono text-[6px] text-slate-500/50 select-none pointer-events-none absolute top-0.5 left-0.5"
+                    onMouseDown={(e) => handleCellDown(index, e)}
+                    onTouchStart={(e) => handleCellDown(index, e)}
+                    onMouseEnter={() => handleCellEnter(index)}
+                    className={`relative border flex items-start justify-start p-0.5 cursor-pointer transition-all duration-100 select-none ${cellColorClass}`}
                   >
-                    {index + 1}
-                  </span>
-                </div>
-              ))}
+                    <span 
+                      data-cell-index={index}
+                      className="font-mono text-[6px] text-slate-500/60 select-none pointer-events-none absolute top-0.5 left-0.5"
+                    >
+                      {index + 1}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
           </div>
         </div>
       </div>
 
-      {/* 2. RIGHT GRAPHICAL CONFIGURATION PANEL FOR SIMULATION / DECOR */}
-      <div className="w-full lg:w-[220px] flex flex-col gap-3.5 bg-slate-900/40 border border-white/5 rounded-2xl p-4 flex-shrink-0">
+      {/* 2. RIGHT HAND CONTROLS & COMPACT SETTINGS DECK */}
+      <div className="w-full lg:w-[220px] flex flex-col gap-3.5 bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex-shrink-0 max-h-[500px] overflow-y-auto scrollbar-thin my-auto">
         {activeMode === 'mark' ? (
-          // MARK GUIDE MANUAL
-          <div className="space-y-3 my-auto text-slate-300">
+          
+          // DIRECT CHECKER MODE MANUAL GUIDE
+          <div className="space-y-3.5 text-slate-300">
             <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1 select-none">
-              <Layers size={11} /> Grid Instructions
+              <Layers size={11} strokeWidth={2.5} /> Grid Instructions
             </h4>
             <p className="text-[11px] leading-relaxed select-none">
-              画像上の 10x10 マスの中で、広告の <b>[文字コピー/ロゴ/追加装飾]</b> が重なっているマスをドラッグまたはクリックしてマークしてください。
+              文字やロゴが重なっている箇所を選択（または追加パーツを作成）してください。
             </p>
-            <div className="bg-slate-950/50 rounded-xl p-3 border border-white/5 space-y-2 select-none">
+            
+            <div className="bg-slate-950/65 rounded-xl p-3 border border-white/5 space-y-2 select-none">
               <div className="flex items-center gap-2 text-xs">
-                <div className="w-2.5 h-2.5 rounded bg-rose-500/30 border border-rose-500/75" />
-                <span className="text-[11px] text-slate-400 font-medium">追加ロゴ・文字</span>
+                <div className="w-2.5 h-2.5 rounded bg-rose-500/40 border border-rose-500/80" />
+                <span className="text-[11px] text-slate-400 font-medium">手動マーク箇所</span>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <div className="w-2.5 h-2.5 rounded border border-slate-700 bg-transparent" />
-                <span className="text-[11px] text-slate-400 font-medium">未マーク (空き・安全エリア)</span>
+                <div className="w-2.5 h-2.5 rounded bg-indigo-500/40 border border-indigo-500/80" />
+                <span className="text-[11px] text-slate-400 font-medium">パーツ占有(自動検知)</span>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 italic leading-snug">
-              ※ マークされた個数(%)は自動感知され、リアルタイムに配信安全性にフィードバックされます。
+
+            <p className="text-[10px] text-slate-400 leading-normal bg-white/5 p-2 rounded border border-white/5 select-none">
+              💡 <b>追加パーツを設置すると、文字の厚みに応じて占有率(%)が自動的に加算されるようになりました。</b>
             </p>
           </div>
         ) : (
-          // INTERACTIVE SIMULATOR ITEM CONFIG
-          <div className="space-y-4 flex-1 flex flex-col justify-between">
+          
+          // GRAPHICS BUILDER SIMULATOR CONTROLS
+          <div className="space-y-4">
             <div>
               <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1 mb-2.5">
-                <Plus size={11} /> パーツ追加 (Overlay)
+                <Plus size={11} /> パーツ作成 (Add-ons)
               </h4>
               
-              {/* Overlay Preset Adders */}
-              <div className="grid grid-cols-2 gap-1.5 mb-4">
+              {/* Presets generator buttons */}
+              <div className="grid grid-cols-2 gap-1.5 mb-3.5">
                 <button
                   type="button"
                   onClick={() => handleAddItem('bubble')}
-                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer"
+                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-[10px] font-bold text-left flex items-center gap-1 transition-all text-slate-200 cursor-pointer border border-white/5"
                 >
-                  <MessageSquare size={12} className="text-pink-400" />
+                  <MessageSquare size={11} className="text-pink-400" />
                   吹き出し
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAddItem('plate')}
-                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer"
+                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-[10px] font-bold text-left flex items-center gap-1 transition-all text-slate-200 cursor-pointer border border-white/5"
                 >
-                  <Bookmark size={12} className="text-amber-400" />
+                  <Bookmark size={11} className="text-amber-400" />
                   ざぶとん
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAddItem('badge')}
-                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer"
+                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer border border-white/5"
                 >
-                  <Sparkles size={12} className="text-yellow-400" />
+                  <Sparkles size={11} className="text-yellow-400" />
                   バッジ/セット
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAddItem('text')}
-                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer"
+                  className="px-2 py-2 bg-slate-800 hover:bg-slate-700/80 rounded-lg text-[10px] font-bold text-left flex items-center gap-1.5 transition-all text-slate-200 cursor-pointer border border-white/5"
                 >
-                  <Type size={12} className="text-sky-400" />
-                  一般テキスト
+                  <Type size={11} className="text-sky-450" />
+                  テキスト
                 </button>
               </div>
 
-              {/* Selected Item Properties tuner */}
+              {/* Dynamic export size resolution controls */}
+              <div className="p-2.5 bg-slate-950/70 border border-white/5 rounded-xl space-y-1.5 mb-3 select-none text-[10px]">
+                <div className="flex justify-between items-baseline font-bold text-slate-400 uppercase tracking-widest mb-1">
+                  <span className="flex items-center gap-1 text-emerald-400"><Maximize2 size={10} /> 書き出しサイズ</span>
+                  <span>{exportScale === 1.0 ? '等倍 (1x)' : `${exportScale}x`}</span>
+                </div>
+                
+                <select
+                  value={exportScale}
+                  onChange={(e) => setExportScale(parseFloat(e.target.value))}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-[11px] text-white font-medium cursor-pointer outline-none focus:border-emerald-500"
+                >
+                  <option value="0.5">ハーフサイズ (0.5x)</option>
+                  <option value="0.75">携帯重視 (0.75x)</option>
+                  <option value="1.0">標準サイズ (1.0x)</option>
+                  <option value="1.5">高精細 (1.5x)</option>
+                  <option value="2.0">印刷・Retina (2.0x)</option>
+                  <option value="3.0">超高画質 (3.0x)</option>
+                </select>
+
+                <div className="text-[9px] text-slate-500 font-mono flex justify-between leading-none pt-1">
+                  <span>保存解像度:</span>
+                  <span className="text-emerald-400 font-bold">
+                    {Math.round(baseImageDimensions.width * exportScale)} × {Math.round(baseImageDimensions.height * exportScale)} px
+                  </span>
+                </div>
+              </div>
+
+              {/* Editing details inspector card */}
               {selectedItemObj ? (
-                <div className="pt-3 border-t border-white/5 space-y-3">
+                <div className="pt-3 border-t border-white/10 space-y-3">
                   <div className="flex justify-between items-center select-none">
-                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                      パーツ調節パネル
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      調節オプション
                     </span>
                     <button
+                      type="button"
                       onClick={() => setSelectedItemId(null)}
-                      className="text-[9px] font-bold text-slate-500 hover:text-white"
+                      className="text-[9px] font-bold text-slate-500 hover:text-white cursor-pointer"
                     >
                       閉じる
                     </button>
                   </div>
 
-                  {/* Text Contents input flow */}
+                  {/* Multi-line Text Area Support */}
                   {selectedItemObj.type !== 'badge' ? (
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
-                        テキスト編集
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block font-bold">
+                        文字入力 (改行可)
                       </label>
-                      <input
-                        type="text"
+                      <textarea
                         value={selectedItemObj.text}
                         onChange={(e) => handleUpdateSelectedItem('text', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500 font-medium"
+                        rows={2}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500 font-medium leading-relaxed"
+                        placeholder="文字を入力（Enterで改行）"
                       />
                     </div>
                   ) : (
-                    // Badge Number setup
+                    // Badges count details
                     <div className="grid grid-cols-2 gap-1.5">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
-                          数字/値
+                        <label className="text-[9px] font-bold text-slate-100 uppercase tracking-widest block font-bold text-center">
+                          数字
                         </label>
                         <input
                           type="text"
@@ -732,7 +900,7 @@ export default function TextGridChecker({
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
+                        <label className="text-[9px] font-bold text-slate-200 uppercase tracking-widest block text-center font-bold">
                           単位・ラベル
                         </label>
                         <input
@@ -745,7 +913,7 @@ export default function TextGridChecker({
                     </div>
                   )}
 
-                  {/* Font Setting Options */}
+                  {/* Font Type options */}
                   <div className="space-y-1">
                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
                       フォント指定
@@ -754,10 +922,10 @@ export default function TextGridChecker({
                       <button
                         type="button"
                         onClick={() => handleUpdateSelectedItem('fontFamily', 'Noto')}
-                        className={`py-1 text-[9px] font-bold rounded ${
+                        className={`py-1 text-[9px] font-bold rounded cursor-pointer ${
                           selectedItemObj.fontFamily === 'Noto' 
                             ? 'bg-emerald-500 text-slate-950 shadow' 
-                            : 'bg-slate-950 text-slate-400 hover:text-white'
+                            : 'bg-slate-950 text-slate-400 hover:text-white border border-white/5'
                         }`}
                       >
                         Noto Sans
@@ -765,36 +933,36 @@ export default function TextGridChecker({
                       <button
                         type="button"
                         onClick={() => handleUpdateSelectedItem('fontFamily', 'CCPixelArcade')}
-                        className={`py-1 text-[9px] font-bold rounded ${
+                        className={`py-1 text-[9px] font-bold rounded cursor-pointer ${
                           selectedItemObj.fontFamily === 'CCPixelArcade' 
                             ? 'bg-emerald-500 text-slate-950 shadow' 
-                            : 'bg-slate-950 text-slate-400 hover:text-white'
+                            : 'bg-slate-950 text-slate-400 hover:text-white border border-white/5'
                         }`}
-                        title="Adobe 'CCPixelArcade' フォント。契約されているPC等で有効になります"
+                        title="Adobe (CCPixelArcade) フォント。契約中の端末環境等でレンダリングがサポートされます"
                       >
-                        CCPixelArcade
+                        Pixel Arcade
                       </button>
                     </div>
                   </div>
 
-                  {/* Weight setup */}
+                  {/* Font Weight */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-baseline">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
                         ウェイト (太さ)
                       </label>
-                      <span className="text-[9px] font-bold text-emerald-400">
+                      <span className="text-[8px] font-bold text-emerald-400">
                         {
-                          selectedItemObj.fontWeight === '300' ? '細 (Light)' :
-                          selectedItemObj.fontWeight === '400' ? '通常 (Regular)' :
-                          selectedItemObj.fontWeight === '700' ? '太字 (Bold)' : '極太 (Black)'
+                          selectedItemObj.fontWeight === '300' ? '細字' :
+                          selectedItemObj.fontWeight === '400' ? '通常' :
+                          selectedItemObj.fontWeight === '700' ? '太字' : '極太'
                         }
                       </span>
                     </div>
                     <select
                       value={selectedItemObj.fontWeight}
                       onChange={(e) => handleUpdateSelectedItem('fontWeight', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white font-medium cursor-pointer"
+                      className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-xs text-white font-medium cursor-pointer"
                     >
                       <option value="300">Light (300)</option>
                       <option value="400">Regular (400)</option>
@@ -803,7 +971,7 @@ export default function TextGridChecker({
                     </select>
                   </div>
 
-                  {/* Size customization bar */}
+                  {/* Range Slider for font-size */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-baseline text-[9px] font-bold text-slate-500 uppercase tracking-widest">
                       <span>文字サイズ</span>
@@ -819,11 +987,11 @@ export default function TextGridChecker({
                     />
                   </div>
 
-                  {/* Presets Overlay Background Colors */}
+                  {/* Colors background selector */}
                   {selectedItemObj.type !== 'text' && (
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
-                        背景テーマ色 (ざぶとん/バッジ)
+                        背景色 (テーマ設定)
                       </label>
                       <div className="flex flex-wrap gap-1">
                         {PRESET_COLORS.map((clr) => (
@@ -835,7 +1003,7 @@ export default function TextGridChecker({
                               handleUpdateSelectedItem('textColor', clr.text);
                             }}
                             className={`w-4 h-4 rounded-full border transition-all ${
-                              selectedItemObj.color === clr.bg ? 'scale-125 border-emerald-400' : 'border-transparent hover:scale-110'
+                              selectedItemObj.color === clr.bg ? 'scale-125 border-emerald-400 ring-2 ring-emerald-500/30' : 'border-transparent hover:scale-110'
                             }`}
                             style={{ backgroundColor: clr.bg }}
                             title={clr.name}
@@ -845,25 +1013,25 @@ export default function TextGridChecker({
                     </div>
                   )}
 
-                  {/* Plate rounding specific */}
+                  {/* Border rounded modifier plate */}
                   {selectedItemObj.type === 'plate' && (
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
-                        ざぶとんの角丸
+                        ざぶとん角丸
                       </label>
                       <select
                         value={selectedItemObj.plateRounding}
                         onChange={(e) => handleUpdateSelectedItem('plateRounding', e.target.value as any)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white font-medium cursor-pointer"
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-xs text-white font-medium cursor-pointer"
                       >
                         <option value="none">直角 (0px)</option>
-                        <option value="md">やや丸み (6px)</option>
-                        <option value="full">完全丸み (50%)</option>
+                        <option value="md">標準角丸 (6px)</option>
+                        <option value="full">完全丸 (rounded-full)</option>
                       </select>
                     </div>
                   )}
 
-                  {/* Bubble pointer specific */}
+                  {/* Speech pointers */}
                   {selectedItemObj.type === 'bubble' && (
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
@@ -872,17 +1040,18 @@ export default function TextGridChecker({
                       <select
                         value={selectedItemObj.bubbleDirection}
                         onChange={(e) => handleUpdateSelectedItem('bubbleDirection', e.target.value as any)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white font-medium cursor-pointer"
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1 text-xs text-white font-medium cursor-pointer"
                       >
-                        <option value="bottom">下へ (Down)</option>
-                        <option value="top">上へ (Up)</option>
-                        <option value="left">左へ (Left)</option>
-                        <option value="right">右へ (Right)</option>
+                        <option value="bottom">下 (Down)</option>
+                        <option value="top">上 (Up)</option>
+                        <option value="left">左 (Left)</option>
+                        <option value="right">右 (Right)</option>
                       </select>
                     </div>
                   )}
 
                   <button
+                    type="button"
                     onClick={() => handleDeleteItem(selectedItemObj.id)}
                     className="flex items-center justify-center gap-1.5 w-full py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
                   >
@@ -891,16 +1060,16 @@ export default function TextGridChecker({
                   </button>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl border border-dashed border-white/5 bg-slate-950/20 text-center select-none">
+                <div className="p-3.5 rounded-xl border border-dashed border-white/5 bg-slate-950/20 text-center select-none">
                   <p className="text-[10px] text-slate-500 leading-normal">
-                    追加した重ねパーツや文字をクリックすると、ここにフォントの太さ・色・文字サイズを動的に変更できる詳細調整パネルが開きます。
+                    パーツをクリックすると、ここにフォントの太さ・色・サイズを改修できる調節パネルが表示されます。
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="pt-2.5 border-t border-white/5 space-y-1 text-[9px] text-slate-500 select-none">
-              <p>📌 追加した重ねパーツは画像上で自由に<b>ドラッグ移動</b>できます。</p>
+            <div className="pt-2 border-t border-white/5 space-y-1 text-[9px] text-slate-500 select-none leading-relaxed">
+              <p>📌 追加した重ねパーツは画像上で自由にドラッグ移動できます。</p>
             </div>
           </div>
         )}
