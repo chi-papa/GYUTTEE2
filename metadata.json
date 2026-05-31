@@ -1,0 +1,6 @@
+{
+  "name": "GYUTTEE",
+  "description": "ミニマルかつモダンな画像圧縮・リサイズ＆広告テキスト占有率判定ツール。直感的なBefore/After比較スライダーと10x10グリッドチェッカー搭載。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

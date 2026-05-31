@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;500;700;950&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-logo: "Syne", sans-serif;
+}
+
+@layer utilities {
+  /* カスタム流体アニメーション背景 */
+  .bg-blob-animate {
+    animation: pulse-slow 15s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes pulse-slow {
+  0% {
+    transform: scale(1) translate(0px, 0px);
+  }
+  50% {
+    transform: scale(1.15) translate(30px, -40px);
+  }
+  100% {
+    transform: scale(0.9) translate(-20px, 20px);
+  }
+}
+
+/* スクロールバーの非表示（すべての環境向け） */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
