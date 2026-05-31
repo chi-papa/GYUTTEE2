@@ -202,11 +202,9 @@ export default function App() {
           ─────────────────────────────────────────────────────────────── */}
       <div className="w-full lg:w-[380px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-6 lg:p-8 flex flex-col justify-between flex-shrink-0 relative z-10 shadow-sm lg:h-[95vh] lg:max-h-[95vh] overflow-y-auto">
         <div>
-          {/* Logo element with extreme negative tracking and Arial Black / Syne style */}
-          <div className="mb-6 lg:mb-8">
-            <h1 
-              className="text-4xl font-righteous text-slate-900 leading-none tracking-normal"
-            >
+          {/* Logo element with original text style using Noto Sans JP font */}
+          <div className="mb-6 lg:mb-8 select-none">
+            <h1 className="text-4xl font-noto font-[950] text-[#0F172A] leading-none tracking-normal">
               GYUTT<span className="text-emerald-500">E</span>E.
             </h1>
             <p className="text-[9px] tracking-[0.25em] text-slate-400 mt-2 uppercase font-mono font-bold">
@@ -455,261 +453,169 @@ export default function App() {
                   BROWSE FILE
                 </span>
               </motion.div>
-            ) : (
-              // ───── WORKSPACE OUTCOME VIEW (Symmetric Balance Design) ─────
+            ) : activeTab === 'compress' ? (
+              // ───── WORKSPACE OUTCOME VIEW FOR COMPRESSION (SPLIT METRICS VIEW) ─────
               <motion.div
-                key="mediaspace-pane"
+                key="mediaspace-pane-compress"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-center"
+                className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-center w-full"
               >
-                {/* Left Graphical Widget (Slider / Grid View) */}
+                {/* Left Graphical Widget (Slider View) */}
                 <div className="md:col-span-6 xl:col-span-7 space-y-3">
                   <div className="bg-slate-950/60 p-2.5 rounded-2xl border border-white/5 shadow-2xl">
-                    {activeTab === 'compress' ? (
-                      <BeforeAfterSlider
-                        originalSrc={originalSrc}
-                        compressedSrc={compressedSrc || originalSrc}
-                        className="w-full"
-                      />
-                    ) : (
-                      <TextGridChecker
-                        imageSrc={originalSrc}
-                        onMarkChange={setCheckerMarkedCount}
-                        onReset={handleReset}
-                      />
-                    )}
+                    <BeforeAfterSlider
+                      originalSrc={originalSrc}
+                      compressedSrc={compressedSrc || originalSrc}
+                      className="w-full"
+                    />
                   </div>
                   
-                  {activeTab === 'compress' && (
-                    <div className="flex justify-between px-2 text-[10px] uppercase font-bold tracking-wider text-slate-500 select-none">
-                      <span>◀ 境界線を左右にスライドさせて画質比較</span>
-                      <span>品質設定: {settings.quality}%</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between px-2 text-[10px] uppercase font-bold tracking-wider text-slate-500 select-none">
+                    <span>◀ 境界線を左右にスライドさせて画質比較</span>
+                    <span>品質設定: {settings.quality}%</span>
+                  </div>
                 </div>
 
                 {/* Right Analytical Results Context */}
                 <div className="md:col-span-6 xl:col-span-5 space-y-4">
-                  
-                  {activeTab === 'compress' ? (
-                    // ───── COMPRESSION OUTCOMES & COMPARISON METRICS ─────
-                    <div className="space-y-4">
+                  <div className="space-y-4">
+                    
+                    {/* 1. LEFT-TO-RIGHT DYNAMIC CONNECTING FLOW */}
+                    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden backdrop-blur-sm shadow-xl">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/[0.02] to-transparent pointer-events-none" />
                       
-                      {/* 1. LEFT-TO-RIGHT DYNAMIC CONNECTING FLOW (Requested: Flow map guiding Left-to-Right) */}
-                      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden backdrop-blur-sm shadow-xl">
-                        {/* Shimmer overlay effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/[0.02] to-transparent pointer-events-none" />
+                      {/* Left node (Before size) */}
+                      <div className="flex flex-col items-center text-center w-[30%] select-none">
+                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 mb-2">
+                          <HardDrive size={14} />
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">
+                          Before
+                        </span>
+                        <span className="font-mono text-xs text-slate-300 font-bold">
+                          {originalInfo ? formatBytes(originalInfo.size) : '—'}
+                        </span>
+                        <span className="text-[8px] text-slate-500 font-mono mt-0.5">
+                          {originalInfo?.width} × {originalInfo?.height}
+                        </span>
+                      </div>
+
+                      {/* Middle connector line with Flow arrow & animation */}
+                      <div className="flex-1 px-3 flex flex-col items-center">
+                        <div className="bg-emerald-500 text-slate-950 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full tracking-wider shadow-md mb-2 flex items-center gap-1">
+                          <TrendingDown size={11} className="stroke-[3]" />
+                          {reductionPercentage}% 削減
+                        </div>
+                        <div className="w-full h-1 bg-slate-800 rounded-full relative overflow-hidden flex items-center">
+                          <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
+                          <div className="absolute top-0 bottom-0 right-0 w-2 h-full bg-emerald-400 blur-sm animate-[pulse_1s_infinite]" />
+                        </div>
+                        <span className="text-[8px] text-slate-500 uppercase tracking-widest font-mono mt-1 flex items-center gap-0.5">
+                          Optimize Pipeline <ArrowRight size={8} />
+                        </span>
+                      </div>
+
+                      {/* Right node (After size) */}
+                      <div className="flex flex-col items-center text-center w-[35%] relative">
+                        <div className="absolute -inset-1 bg-emerald-500/25 rounded-full blur-md opacity-70 animate-pulse pointer-events-none" />
                         
-                        {/* Left node (Before size) */}
-                        <div className="flex flex-col items-center text-center w-[30%] select-none">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 mb-2">
-                            <HardDrive size={14} />
-                          </div>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">
-                            Before
-                          </span>
-                          <span className="font-mono text-xs text-slate-300 font-bold">
-                            {originalInfo ? formatBytes(originalInfo.size) : '—'}
-                          </span>
-                          <span className="text-[8px] text-slate-500 font-mono mt-0.5">
-                            {originalInfo?.width} × {originalInfo?.height}
-                          </span>
+                        <div className="w-9 h-9 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center mb-1.5 shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400/30 relative z-10">
+                          <Sparkles size={16} />
                         </div>
-
-                        {/* Middle connector line with Flow arrow & animation */}
-                        <div className="flex-1 px-3 flex flex-col items-center">
-                          {/* Squeezed Rate Badge */}
-                          <div className="bg-emerald-500 text-slate-950 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full tracking-wider shadow-md mb-2 flex items-center gap-1">
-                            <TrendingDown size={11} className="stroke-[3]" />
-                            {reductionPercentage}% 削減
-                          </div>
-                          <div className="w-full h-1 bg-slate-800 rounded-full relative overflow-hidden flex items-center">
-                            {/* Animated light flow point */}
-                            <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
-                            <div className="absolute top-0 bottom-0 right-0 w-2 h-full bg-emerald-400 blur-sm animate-[pulse_1s_infinite]" />
-                          </div>
-                          <span className="text-[8px] text-slate-500 uppercase tracking-widest font-mono mt-1 flex items-center gap-0.5">
-                            Optimize Pipeline <ArrowRight size={8} />
-                          </span>
-                        </div>
-
-                        {/* Right node (After size - HEAVILY EMPHASIZED) */}
-                        <div className="flex flex-col items-center text-center w-[35%] relative">
-                          {/* Radial bloom behind the optimized element */}
-                          <div className="absolute -inset-1 bg-emerald-500/25 rounded-full blur-md opacity-70 animate-pulse pointer-events-none" />
-                          
-                          <div className="w-9 h-9 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center mb-1.5 shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400/30 relative z-10">
-                            <Sparkles size={16} />
-                          </div>
-                          <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest leading-none mb-1 relative z-10">
-                            Optimized AFTER
-                          </span>
-                          <span className="font-mono text-sm text-emerald-300 font-black relative z-10 bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-500/20 shadow-inner">
-                            {formatBytes(compressedSize)}
-                          </span>
-                          <span className="text-[8px] text-emerald-500 font-mono mt-1 relative z-10">
-                            {originalInfo ? Math.round(originalInfo.width * settings.scale) : 0} × {originalInfo ? Math.round(originalInfo.height * settings.scale) : 0}
-                          </span>
-                        </div>
+                        <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest leading-none mb-1 relative z-10">
+                          Optimized AFTER
+                        </span>
+                        <span className="font-mono text-sm text-emerald-300 font-black relative z-10 bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-500/20 shadow-inner">
+                          {formatBytes(compressedSize)}
+                        </span>
+                        <span className="text-[8px] text-emerald-500 font-mono mt-1 relative z-10">
+                          {originalInfo ? Math.round(originalInfo.width * settings.scale) : 0} × {originalInfo ? Math.round(originalInfo.height * settings.scale) : 0}
+                        </span>
                       </div>
-
-                      {/* 2. OVERALL STATS HERO DISPLAY (Extra Big Percentage highlight) */}
-                      <div className="grid grid-cols-2 gap-3">
-                        
-                        {/* Huge Outcome reduction card */}
-                        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
-                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
-                            データ容量削減率 (Savings)
-                          </span>
-                          <div className="flex items-baseline gap-1 mt-1.5">
-                            <span className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 tracking-tight leading-none">
-                              {reductionPercentage}%
-                            </span>
-                            <span className="text-[9px] font-bold tracking-wider text-emerald-500 uppercase">Saved</span>
-                          </div>
-                          <p className="text-[9px] text-slate-500 leading-relaxed mt-2 uppercase font-mono">
-                            デバイス負荷 & 通信料カット
-                          </p>
-                        </div>
-
-                        {/* Byte reduction card */}
-                        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
-                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
-                            削減された容量 (Diff)
-                          </span>
-                          <div className="flex items-baseline gap-1 mt-1.5">
-                            <span className="text-2xl lg:text-3xl font-extrabold text-slate-100 tracking-tight leading-none">
-                              {sizeDiff > 0 ? formatBytes(sizeDiff) : '0 KB'}
-                            </span>
-                          </div>
-                          <p className="text-[9px] text-slate-500 leading-relaxed mt-2 uppercase font-mono">
-                            サーバー容量圧縮
-                          </p>
-                        </div>
-
-                      </div>
-
-                      {/* Warnings if compressed is actually larger */}
-                      {compressedSize > (originalInfo?.size || 0) && (
-                        <div className="flex gap-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl p-3 text-xs">
-                          <AlertTriangle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
-                          <p>画像の特性上サイズが増加しています。WebP等への出力形式変更を推奨します。</p>
-                        </div>
-                      )}
-
-                      {/* 3. PRIMARY CALL-TO-ACTIONS WITH GROUPED ROW */}
-                      <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
-                        <button
-                          onClick={handleDownload}
-                          className="group flex items-center justify-between w-full p-3.5 border border-emerald-500/30 hover:border-emerald-500 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-white hover:text-slate-950 transition-all duration-300 text-left cursor-pointer"
-                        >
-                          <span className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            <Download size={14} />
-                            最適化画像をダウンロード保存
-                          </span>
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 group-hover:bg-slate-900/10 text-current transition-colors">
-                            <ArrowRight size={12} />
-                          </div>
-                        </button>
-
-                        <button
-                          onClick={handleReset}
-                          className="flex items-center justify-center py-2 text-xs text-slate-500 hover:text-slate-300 transition-all font-mono font-bold uppercase tracking-widest"
-                        >
-                          別のファイルを最適化 ↩
-                        </button>
-                      </div>
-
                     </div>
-                  ) : (
-                    // ───── AD SAFETY GRID AUDIT VERDICTS (20% Limit Rules) ─────
-                    <div className="space-y-4">
-                      
-                      {/* Flow Guide Connector */}
-                      <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex items-center justify-between pointer-events-none">
-                        <div className="flex flex-col items-center text-center w-[35%]">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 mb-1.5">
-                            <LayoutGrid size={13} />
-                          </div>
-                          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">
-                            グリッド判定
-                          </span>
-                          <span className="text-[10px] font-mono font-bold text-white leading-tight">
-                            {checkerMarkedCount} / 100 マス
-                          </span>
-                        </div>
 
-                        {/* Mid Indicator flow direction */}
-                        <div className="flex-1 px-2 flex flex-col items-center">
-                          <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${checkerReport.colorClass}`}>
-                            制限目安 20%
-                          </div>
-                          <div className="w-full h-[2px] bg-slate-800 rounded-full relative overflow-hidden">
-                            <div className={`absolute top-0 bottom-0 left-0 w-2/3 ${checkerMarkedCount <= 20 ? 'bg-emerald-400' : 'bg-rose-450'}`} />
-                          </div>
-                        </div>
-
-                        {/* Safety standard Audit result (Emphasized After state) */}
-                        <div className="flex flex-col items-center text-center w-[35%] relative">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-1.5 text-slate-900 font-extrabold text-lg bg-white shadow-lg`}>
-                            {checkerReport.mark}
-                          </div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">
-                            監査結果 (After)
+                    {/* 2. OVERALL STATS HERO DISPLAY */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+                          データ容量削減率 (Savings)
+                        </span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 tracking-tight leading-none">
+                            {reductionPercentage}%
                           </span>
-                          <span className={`text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded ${checkerReport.color}`}>
-                            {checkerReport.label}
-                          </span>
+                          <span className="text-[9px] font-bold tracking-wider text-emerald-500 uppercase">Saved</span>
                         </div>
+                        <p className="text-[9px] text-slate-500 leading-relaxed mt-2 uppercase font-mono">
+                          デバイス負荷 & 通信料カット
+                        </p>
                       </div>
 
-                      {/* Display Occupancy Meter detail cards */}
-                      <div className="grid grid-cols-2 gap-3">
-                        
-                        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
-                          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
-                            ロゴ・文字占有率
+                      <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+                          削減された容量 (Diff)
+                        </span>
+                        <div className="flex items-baseline gap-1 mt-1.5">
+                          <span className="text-2xl lg:text-3xl font-extrabold text-slate-100 tracking-tight leading-none">
+                            {sizeDiff > 0 ? formatBytes(sizeDiff) : '0 KB'}
                           </span>
-                          <div className="flex items-baseline gap-1 mt-1.5">
-                            <span className={`text-4xl lg:text-5xl font-extrabold tracking-tight leading-none ${checkerReport.colorClass}`}>
-                              {checkerMarkedCount}%
-                            </span>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase">Occupied</span>
-                          </div>
                         </div>
-
-                        <div className={`border p-4 rounded-2xl flex flex-col justify-between ${checkerReport.color}`}>
-                          <div className="text-xs font-bold leading-tight">
-                            {checkerReport.label} 判定獲得
-                          </div>
-                          <div className="text-[9px] opacity-75 uppercase tracking-widest font-mono mt-2">
-                            Platform Safety Grade
-                          </div>
-                        </div>
-
+                        <p className="text-[9px] text-slate-500 leading-relaxed mt-2 uppercase font-mono">
+                          サーバー容量圧縮
+                        </p>
                       </div>
-
-                      {/* Description state readout */}
-                      <div className={`p-4 rounded-xl border text-xs leading-relaxed ${checkerReport.color}`}>
-                        {checkerReport.text}
-                      </div>
-
-                      {/* Reset CTA */}
-                      <div className="pt-2 border-t border-white/5">
-                        <button
-                          onClick={handleReset}
-                          className="w-full py-3 border border-white/10 hover:border-white/20 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest cursor-pointer"
-                        >
-                          別のバナーを判定する
-                        </button>
-                      </div>
-
                     </div>
-                  )}
 
+                    {/* Warnings if compressed is actually larger */}
+                    {compressedSize > (originalInfo?.size || 0) && (
+                      <div className="flex gap-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl p-3 text-xs">
+                        <AlertTriangle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                        <p>画像の特性上サイズが増加しています。WebP等への出力形式変更を推奨します。</p>
+                      </div>
+                    )}
+
+                    {/* 3. PRIMARY CALL-TO-ACTIONS WITH GROUPED ROW */}
+                    <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+                      <button
+                        onClick={handleDownload}
+                        className="group flex items-center justify-between w-full p-3.5 border border-emerald-500/30 hover:border-emerald-500 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-white hover:text-slate-950 transition-all duration-300 text-left cursor-pointer"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                          <Download size={14} />
+                          最適化画像をダウンロード保存
+                        </span>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-white/10 group-hover:bg-slate-900/10 text-current transition-colors">
+                          <ArrowRight size={12} />
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={handleReset}
+                        className="flex items-center justify-center py-2 text-xs text-slate-500 hover:text-slate-300 transition-all font-mono font-bold uppercase tracking-widest"
+                      >
+                        別のファイルを最適化 ↩
+                      </button>
+                    </div>
+
+                  </div>
                 </div>
+              </motion.div>
+            ) : (
+              // ───── WORKSPACE OUTCOME VIEW FOR OCCUPANCY CHECKER (COMPLETE SPACIOUS GRID) ─────
+              <motion.div
+                key="mediaspace-pane-checker"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="w-full"
+              >
+                <TextGridChecker
+                  imageSrc={originalSrc}
+                  onMarkChange={setCheckerMarkedCount}
+                  onReset={handleReset}
+                />
               </motion.div>
             )}
           </AnimatePresence>

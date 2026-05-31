@@ -9,7 +9,10 @@ import {
   Bookmark,
   X,
   Type,
-  Maximize2
+  Maximize2,
+  CheckCircle2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 interface DragItem {
@@ -538,54 +541,84 @@ export default function TextGridChecker({
 
   const selectedItemObj = items.find(it => it.id === selectedItemId);
 
+  const getCheckerGrade = (count: number) => {
+    if (count <= 20) {
+      return { 
+        label: '◎ 安全 (OK)', 
+        text: 'テキスト・ロゴ比率20%以下。ほぼ全ての広告配信プラットフォーム基準を満たしており、露出最大化が保証されます。', 
+        color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5', 
+        colorClass: 'text-emerald-400', 
+        mark: '◎' 
+      };
+    }
+    if (count <= 31) {
+      return { 
+        label: '△ 注意 (Warn)', 
+        text: 'テキスト・ロゴ比率20〜31%以下。一部プラットフォームで画像内テキスト規制に引っかかり、配信インプレッションが制限される恐れがあります。要素を削る等の調整を推奨します。', 
+        color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', 
+        colorClass: 'text-amber-400', 
+        mark: '△' 
+      };
+    }
+    return { 
+      label: '× 超過 (Critical)', 
+      text: 'テキスト・ロゴ比率31%超。テキスト量過多のため審査落ち（入稿拒否）や、配信が極端に制限される可能性が極めて高い状態です。要約や、シミュレータによるレイアウト改善が必要です。', 
+      color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', 
+      colorClass: 'text-rose-400', 
+      mark: '×' 
+    };
+  };
+
+  const checkerReport = getCheckerGrade(unifiedMarkedCount);
+
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full gap-5 select-none text-white relative" ref={containerRef}>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 select-none text-white relative w-full" ref={containerRef}>
       
       {/* 1. LEFT MAIN INTERACTIVE CANVAS VIEWPORT */}
-      <div className="flex-1 flex flex-col gap-3 min-w-0">
+      <div className="lg:col-span-7 flex flex-col gap-4 min-w-0">
         
         {/* Taster modes control */}
-        <div className="flex items-center justify-between p-1 bg-slate-900/80 rounded-xl border border-white/10 shadow-lg">
-          <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-900/80 rounded-xl border border-white/10 shadow-lg gap-3">
+          <div className="flex gap-1.5">
             <button
               onClick={() => { setActiveMode('mark'); setSelectedItemId(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 activeMode === 'mark' 
-                  ? 'bg-slate-800 text-emerald-400 shadow-inner' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-slate-800 text-emerald-400 shadow-inner ring-1 ring-white/10' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Layers size={13} />
-              グリッドマーク
+              <Layers size={14} />
+              グリッドマーク判定
             </button>
             <button
               onClick={() => setActiveMode('simulation')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 activeMode === 'simulation' 
-                  ? 'bg-slate-800 text-emerald-400 shadow-inner' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-slate-800 text-emerald-400 shadow-inner ring-1 ring-white/10' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Sparkles size={13} />
-              追加パーツ (シミュレータ)
+              <Sparkles size={14} />
+              パーツシミュレータ
             </button>
           </div>
 
-          <div className="flex gap-1.5 pr-1">
+          <div className="flex gap-1.5 sm:pr-1">
             {activeMode === 'mark' ? (
               <button
                 onClick={handleClear}
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-slate-800/85 hover:bg-slate-700/80 hover:text-white rounded border border-white/5 text-slate-300 transition-all cursor-pointer"
+                className="text-xs font-bold px-4 py-2.5 bg-slate-850 hover:bg-slate-800 hover:text-rose-450 rounded-lg border border-white/5 text-slate-305 transition-all cursor-pointer"
               >
                 マーク消去
               </button>
             ) : (
               <button
                 onClick={handleExportComposedImage}
-                className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 bg-emerald-500 text-slate-950 rounded hover:bg-emerald-400 border border-emerald-600/20 shadow transition-all cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-extrabold tracking-wider px-4 py-2.5 bg-emerald-500 text-slate-950 rounded-lg hover:bg-emerald-450 border border-emerald-600/20 shadow-md transition-all cursor-pointer"
               >
-                <Download size={10} strokeWidth={2.5} />
-                合成保存
+                <Download size={13} strokeWidth={2.5} />
+                合成画像を保存 (Export)
               </button>
             )}
           </div>
@@ -596,16 +629,16 @@ export default function TextGridChecker({
           ref={imageContainerRef}
           onMouseMove={handleCanvasMouseMove}
           onTouchMove={handleCanvasMouseMove}
-          className="relative min-h-[300px] aspect-square w-full rounded-2xl bg-neutral-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-2.5 shadow-2xl"
+          className="relative aspect-square w-full rounded-2xl bg-neutral-950 border border-slate-800/80 overflow-hidden flex items-center justify-center p-3 shadow-2xl"
         >
-          {/* Constrain layout to avoid overflow */}
-          <div className="relative w-full h-full max-h-[36vh] flex items-center justify-center aspect-square select-none">
+          {/* Work area wrapper without rigid height limits */}
+          <div className="relative w-full h-full flex items-center justify-center aspect-square select-none">
             
-            {/* Background Upload Image */}
+            {/* Background Image */}
             <img
               src={imageSrc}
               alt="Workspace canvas background"
-              className="w-full h-full object-contain max-h-[36vh] rounded-lg pointer-events-none opacity-85"
+              className="w-full h-full object-contain rounded-lg pointer-events-none opacity-85"
             />
 
             {/* OVERLAY PANEL: Draggable Overlay elements items */}
@@ -711,7 +744,7 @@ export default function TextGridChecker({
             {/* PAINT GRID CELLS: Manual Selector + Auto Overlaps blending */}
             <div 
               className={`absolute inset-0 m-auto aspect-square grid grid-cols-10 grid-rows-10 border border-sky-400/25 overflow-hidden rounded-lg bg-transparent transition-opacity duration-300
-                ${activeMode === 'mark' ? 'opacity-100 z-10' : 'opacity-25 pointer-events-none z-0'}
+                ${activeMode === 'mark' ? 'opacity-[0.88] z-10 shadow-[0_0_50px_rgba(34,197,94,0.15)] bg-slate-950/20' : 'opacity-[0.15] pointer-events-none z-0'}
               `}
               style={{ maxHeight: '100%', maxWidth: '100%' }}
             >
@@ -736,11 +769,11 @@ export default function TextGridChecker({
                     onMouseDown={(e) => handleCellDown(index, e)}
                     onTouchStart={(e) => handleCellDown(index, e)}
                     onMouseEnter={() => handleCellEnter(index)}
-                    className={`relative border flex items-start justify-start p-0.5 cursor-pointer transition-all duration-100 select-none ${cellColorClass}`}
+                    className={`relative border flex items-start justify-start p-1.5 cursor-pointer transition-all duration-100 select-none ${cellColorClass}`}
                   >
                     <span 
                       data-cell-index={index}
-                      className="font-mono text-[6px] text-slate-500/60 select-none pointer-events-none absolute top-0.5 left-0.5"
+                      className="font-mono text-[7.5px] text-slate-400 select-none pointer-events-none absolute top-1 left-1.5 font-bold"
                     >
                       {index + 1}
                     </span>
@@ -753,34 +786,75 @@ export default function TextGridChecker({
         </div>
       </div>
 
-      {/* 2. RIGHT HAND CONTROLS & COMPACT SETTINGS DECK */}
-      <div className="w-full lg:w-[220px] flex flex-col gap-3.5 bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex-shrink-0 max-h-[500px] overflow-y-auto scrollbar-thin my-auto">
-        {activeMode === 'mark' ? (
+      {/* 2. RIGHT HAND CONTROLS & COMPREHENSIVE SETTINGS */}
+      <div className="lg:col-span-5 flex flex-col gap-5 w-full">
+        
+        {/* Real-time Layout Safety Audit Report */}
+        <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-5 shadow-2xl backdrop-blur-md">
+          <h4 className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2 mb-3 select-none">
+            <CheckCircle2 size={13} className="animate-pulse" /> Layout Safety Audit Result
+          </h4>
           
-          // DIRECT CHECKER MODE MANUAL GUIDE
-          <div className="space-y-3.5 text-slate-300">
-            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1 select-none">
-              <Layers size={11} strokeWidth={2.5} /> Grid Instructions
-            </h4>
-            <p className="text-[11px] leading-relaxed select-none">
-              文字やロゴが重なっている箇所を選択（または追加パーツを作成）してください。
-            </p>
-            
-            <div className="bg-slate-950/65 rounded-xl p-3 border border-white/5 space-y-2 select-none">
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-2.5 h-2.5 rounded bg-rose-500/40 border border-rose-500/80" />
-                <span className="text-[11px] text-slate-400 font-medium">手動マーク箇所</span>
+          {/* Highly visual percentage dial readout */}
+          <div className="flex items-center justify-between bg-white/[0.02] border border-white/10 rounded-xl p-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">占有率 (Occupancy)</span>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-4xl font-extrabold font-mono tracking-tight leading-none ${checkerReport.colorClass}`}>
+                  {unifiedMarkedCount}%
+                </span>
+                <span className="text-[9px] text-slate-500 font-bold uppercase">Occupied</span>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-2.5 h-2.5 rounded bg-indigo-500/40 border border-indigo-500/80" />
-                <span className="text-[11px] text-slate-400 font-medium">パーツ占有(自動検知)</span>
+              <span className="text-[9px] text-slate-500 font-mono mt-1">{unifiedMarkedCount} / 100 マス判定</span>
+            </div>
+            
+            <div className="h-12 w-[1px] bg-white/10" />
+            
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">監査結果</span>
+              <span className={`text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-md border ${checkerReport.color}`}>
+                {checkerReport.label}
+              </span>
+            </div>
+          </div>
+
+          {/* Guidelines Description Readout */}
+          <div className="mt-3.5 bg-slate-900/50 p-3 rounded-xl border border-white/5 text-[11px] text-slate-300 leading-relaxed font-sans">
+            {checkerReport.text}
+          </div>
+        </div>
+
+        {/* Configurations, creation, and item editing tools deck */}
+        <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-5 flex flex-col gap-5 max-h-[500px] overflow-y-auto scrollbar-thin">
+          {activeMode === 'mark' ? (
+            
+            // DIRECT CHECKER MODE MANUAL GUIDE
+            <div className="flex flex-col gap-4 text-slate-300">
+              <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5 select-none font-black font-sans">
+                <Layers size={13} /> グリッドマーク基本手順
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed select-none">
+                バナー内の文言・説明・ロゴが重なっている箇所をマウスでクリック、またはドラッグしてペイントしてください。占有マス合計に基づき審査比率がリアルタイム計算されます。
+              </p>
+              
+              <div className="bg-slate-950/65 rounded-xl p-4 border border-white/10 space-y-2.5 select-none text-xs">
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="w-3.5 h-3.5 rounded bg-rose-500/40 border border-rose-500/80 shadow-[inset_0_0_2px_rgba(244,63,94,0.5)]" />
+                  <span className="text-slate-300 font-bold">手動マークしたセル (Manual)</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="w-3.5 h-3.5 rounded bg-indigo-500/40 border border-indigo-500/80 shadow-[inset_0_0_2px_rgba(99,102,241,0.5)]" />
+                  <span className="text-slate-300 font-bold">追加パーツ自動検知セル (Simulation)</span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-amber-300 leading-normal bg-amber-500/10 border border-amber-500/10 p-3 rounded-xl flex gap-2 select-none">
+                <Info size={14} className="flex-shrink-0 mt-0.5 text-amber-400" />
+                <span>
+                  💡 <b>パーツシミュレータに切り替えて、任意の「吹き出し」「バッジ」「ざぶとん」を配置しながら文字の入稿チェックを作ることも可能です。</b>
+                </span>
               </div>
             </div>
-
-            <p className="text-[10px] text-slate-400 leading-normal bg-white/5 p-2 rounded border border-white/5 select-none">
-              💡 <b>追加パーツを設置すると、文字の厚みに応じて占有率(%)が自動的に加算されるようになりました。</b>
-            </p>
-          </div>
         ) : (
           
           // GRAPHICS BUILDER SIMULATOR CONTROLS
@@ -1074,8 +1148,9 @@ export default function TextGridChecker({
           </div>
         )}
       </div>
-
     </div>
+
+  </div>
   );
 }
 export type { TextGridCheckerProps, DragItem };
